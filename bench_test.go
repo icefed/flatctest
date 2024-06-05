@@ -38,10 +38,10 @@ var (
 	_maxmsgsize   = 0
 
 	_testsizenamearray = []string{
-		// "0k",
+		"0k",
 		"4k",
-		// "64k",
-		// "1m",
+		"64k",
+		"1m",
 		"4m",
 	}
 	_testsizearray = map[string]int{
