@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package helloproto;
+
+option go_package = "flatctest/helloproto";
+
+service Greeter {
+  rpc SayHello(HelloRequest) returns (HelloReply) {}
+}
+
+message HelloRequest {
+  string name = 1;
+  int32 age = 2;
+  string phone = 3;
+  string address = 4;
+  bytes data = 5;
+}
+
+message HelloReply {
+  string name = 1;
+  int32 age = 2;
+  string phone = 3;
+  string address = 4;
+  bytes data = 5;
+}

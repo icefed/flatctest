@@ -1,0 +1,23 @@
+// Generated from hello.proto
+
+namespace helloflatc;
+
+rpc_service Greeter{
+    SayHello(HelloRequest):HelloReply;
+}
+
+table HelloRequest {
+  name:string;
+  age:int;
+  phone:string;
+  address:string;
+  data:[ubyte];
+}
+
+table HelloReply {
+  name:string;
+  age:int;
+  phone:string;
+  address:string;
+  data:[ubyte];
+}
