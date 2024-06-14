@@ -4,19 +4,40 @@ package helloproto;
 
 option go_package = "flatctest/helloproto";
 
-service Greeter {
+service HelloService {
   rpc SayHello(HelloRequest) returns (HelloReply) {}
+  rpc Read(ReadRequest) returns (ReadReply) {}
+  rpc Write(WriteRequest) returns (WriteReply) {}
+  rpc ReadStream(stream ReadRequest) returns (stream ReadReply) {}
+  rpc WriteStream(stream WriteRequest) returns (stream WriteReply) {}
 }
 
 message HelloRequest {
   string name = 1;
-  int32 age = 2;
-  string phone = 3;
-  string address = 4;
-  bytes data = 5;
 }
 
 message HelloReply {
+  string name = 1;
+}
+
+message ReadRequest {
+  int32 read_bytes = 1;
+}
+
+message ReadReply {
+  bytes data = 1;
+  bool eof = 2;
+}
+
+message WriteRequest {
+  bytes data = 1;
+}
+
+message WriteReply {
+  int32 written_bytes = 1;
+}
+
+message User {
   string name = 1;
   int32 age = 2;
   string phone = 3;

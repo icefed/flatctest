@@ -2,21 +2,42 @@
 
 namespace helloflatc;
 
-rpc_service Greeter{
+rpc_service HelloService {
     SayHello(HelloRequest):HelloReply;
+    Read(ReadRequest):ReadReply;
+    Write(WriteRequest):WriteReply;
+    ReadStream(ReadRequest):ReadReply (streaming: "bidi");
+    WriteStream(WriteRequest):WriteReply (streaming: "bidi");
 }
 
 table HelloRequest {
   name:string;
-  age:int;
-  phone:string;
-  address:string;
-  data:[ubyte];
 }
 
 table HelloReply {
   name:string;
-  age:int;
+}
+
+table ReadRequest {
+  read_bytes:int32;
+}
+
+table ReadReply {
+  data:[ubyte];
+  eof:bool;
+}
+
+table WriteRequest {
+    data:[ubyte];
+}
+
+table WriteReply {
+    written_bytes:int32;
+}
+
+table User {
+  name:string;
+  age:int32;
   phone:string;
   address:string;
   data:[ubyte];

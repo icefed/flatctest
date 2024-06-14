@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,11 +32,9 @@ var (
 	_testphone     = "phone"
 	_testaddress   = "address"
 	_testemptydata = []byte{}
-	_testdata      = []byte{}
 
-	_testdatasize = 0
-	_testdataname = "0k"
-	_maxmsgsize   = 0
+	_testdatamu  = sync.Mutex{}
+	_testdatamap = make(map[int][]byte)
 
 	_testsizenamearray = []string{
 		"0k",
@@ -53,291 +52,396 @@ var (
 	}
 )
 
-func initTestData(size int) {
-	_testdata = _testdata[:0]
+func initTestData(size int) []byte {
+	testdata := make([]byte, 0, size)
 	for i := 0; i < 256; i++ {
 		for j := 0; j < size/256; j++ {
-			_testdata = append(_testdata, byte(i))
+			testdata = append(testdata, byte(i))
+		}
+	}
+	return testdata
+}
+
+func getTestData(size int) []byte {
+	_testdatamu.Lock()
+	defer _testdatamu.Unlock()
+
+	if size == 0 {
+		return _testemptydata
+	}
+	if data, ok := _testdatamap[size]; ok {
+		return data
+	}
+
+	testdata := initTestData(size)
+	_testdatamap[size] = testdata
+
+	return testdata
+}
+
+func getMaxMsgSize(size int) int {
+	return size + 256
+}
+
+func TestMain(m *testing.M) {
+	for _, size := range _testsizearray {
+		testdata := initTestData(size)
+		_testdatamap[size] = testdata
+	}
+	m.Run()
+}
+
+func BenchmarkSerial(b *testing.B) {
+	for _, sizename := range _testsizenamearray {
+		b.Run(sizename, func(b *testing.B) {
+			benchSerialFlatc(b, sizename)
+			benchSerialProto(b, sizename)
+		})
+	}
+}
+
+func benchSerialFlatc(b *testing.B, sizename string) {
+	testdatasize := _testsizearray[sizename]
+	maxmsgsize := getMaxMsgSize(testdatasize)
+
+	// p := NewBuilderPool(0)
+	// bd := p.GetBuilder()
+	// defer p.PutBuilder(bd)
+	bd := flatbuffers.NewBuilder(maxmsgsize)
+	name := bd.CreateString(_testname)
+	phone := bd.CreateString(_testphone)
+	address := bd.CreateString(_testaddress)
+	data := bd.CreateByteVector(getTestData(testdatasize))
+	helloflatc.UserStart(bd)
+	helloflatc.UserAddName(bd, name)
+	helloflatc.UserAddAge(bd, 1)
+	helloflatc.UserAddPhone(bd, phone)
+	helloflatc.UserAddAddress(bd, address)
+	helloflatc.UserAddData(bd, data)
+	bd.Finish(helloflatc.UserEnd(bd))
+	buf := bd.FinishedBytes()
+
+	b.Run("flatc", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					// bd := p.GetBuilder()
+					bd := flatbuffers.NewBuilder(maxmsgsize)
+					name := bd.CreateString(_testname)
+					phone := bd.CreateString(_testphone)
+					address := bd.CreateString(_testaddress)
+					data := bd.CreateByteVector(getTestData(testdatasize))
+					helloflatc.UserStart(bd)
+					helloflatc.UserAddName(bd, name)
+					helloflatc.UserAddAge(bd, 1)
+					helloflatc.UserAddPhone(bd, phone)
+					helloflatc.UserAddAddress(bd, address)
+					helloflatc.UserAddData(bd, data)
+					bd.Finish(helloflatc.UserEnd(bd))
+
+					buf := bd.FinishedBytes()
+					_ = buf
+
+					// p.PutBuilder(bd)
+				}
+			})
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					user := helloflatc.GetRootAsUser(buf, 0)
+					_ = user
+				}
+			})
+		})
+	})
+}
+
+func benchSerialProto(b *testing.B, sizename string) {
+	testdatasize := _testsizearray[sizename]
+
+	h := &helloproto.User{
+		Name:    _testname,
+		Age:     1,
+		Phone:   _testphone,
+		Address: _testaddress,
+		Data:    getTestData(testdatasize),
+	}
+	buf, _ := proto.Marshal(h)
+
+	b.Run("proto", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					h := &helloproto.User{
+						Name:    _testname,
+						Age:     1,
+						Phone:   _testphone,
+						Address: _testaddress,
+						Data:    getTestData(testdatasize),
+					}
+
+					buf, err := proto.Marshal(h)
+					_ = err
+					_ = buf
+				}
+			})
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					h2 := &helloproto.User{}
+					err := proto.Unmarshal(buf, h2)
+					_ = err
+				}
+			})
+		})
+	})
+}
+
+func BenchmarkGRPC(b *testing.B) {
+	for _, sizename := range _testsizenamearray {
+		b.Run(sizename, func(b *testing.B) {
+			benchGRPCFlatc(b, sizename)
+			benchGRPCProto(b, sizename)
+		})
+	}
+}
+
+func benchGRPCFlatc(b *testing.B, sizename string) {
+	testdatasize := _testsizearray[sizename]
+	maxmsgsize := getMaxMsgSize(testdatasize)
+
+	// p := NewBuilderPool(0)
+	b.Run("flatc", func(b *testing.B) {
+		client, closer := flatcServe(b, maxmsgsize)
+		defer closer()
+
+		b.Run("write", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					// bd := p.GetBuilder()
+					bd := flatbuffers.NewBuilder(maxmsgsize)
+					data := bd.CreateByteVector(getTestData(testdatasize))
+					helloflatc.WriteRequestStart(bd)
+					helloflatc.WriteRequestAddData(bd, data)
+					bd.Finish(helloflatc.WriteRequestEnd(bd))
+
+					res, err := client.Write(context.Background(), bd)
+					_ = res
+					_ = err
+					// p.PutBuilder(bd)
+				}
+			})
+		})
+		b.Run("read", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					// bd := p.GetBuilder()
+					bd := flatbuffers.NewBuilder(maxmsgsize)
+					helloflatc.ReadRequestStart(bd)
+					helloflatc.ReadRequestAddReadBytes(bd, int32(testdatasize))
+					bd.Finish(helloflatc.ReadRequestEnd(bd))
+
+					res, err := client.Read(context.Background(), bd)
+					_ = res
+					_ = err
+					// p.PutBuilder(bd)
+				}
+			})
+		})
+		b.Run("writestream", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				writer, err := client.WriteStream(context.Background())
+				_ = err
+				defer writer.CloseSend()
+
+				for pb.Next() {
+					// bd := p.GetBuilder()
+					bd := flatbuffers.NewBuilder(maxmsgsize)
+					data := bd.CreateByteVector(getTestData(testdatasize))
+					helloflatc.WriteRequestStart(bd)
+					helloflatc.WriteRequestAddData(bd, data)
+					bd.Finish(helloflatc.WriteRequestEnd(bd))
+
+					err := writer.Send(bd)
+					_ = err
+					resp, err := writer.Recv()
+					_ = resp
+					_ = err
+
+					// p.PutBuilder(bd)
+				}
+			})
+		})
+		b.Run("readstream", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				reader, err := client.ReadStream(context.Background())
+				_ = err
+				defer reader.CloseSend()
+
+				for pb.Next() {
+					// bd := p.GetBuilder()
+					bd := flatbuffers.NewBuilder(maxmsgsize)
+					helloflatc.ReadRequestStart(bd)
+					helloflatc.ReadRequestAddReadBytes(bd, int32(testdatasize))
+					bd.Finish(helloflatc.ReadRequestEnd(bd))
+
+					err := reader.Send(bd)
+					_ = err
+					resp, err := reader.Recv()
+					_ = resp
+					_ = err
+
+					// p.PutBuilder(bd)
+				}
+			})
+		})
+	})
+}
+
+func benchGRPCProto(b *testing.B, sizename string) {
+	testdatasize := _testsizearray[sizename]
+	maxmsgsize := getMaxMsgSize(testdatasize)
+
+	b.Run("proto", func(b *testing.B) {
+		client, closer := protoServe(b, maxmsgsize)
+		defer closer()
+
+		b.Run("write", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					res, err := client.Write(context.Background(), &helloproto.WriteRequest{
+						Data: getTestData(testdatasize),
+					})
+
+					_ = res
+					_ = err
+				}
+			})
+		})
+		b.Run("read", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					res, err := client.Read(context.Background(), &helloproto.ReadRequest{
+						ReadBytes: int32(testdatasize),
+					})
+
+					_ = res
+					_ = err
+				}
+			})
+		})
+
+		b.Run("writestream", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				writer, err := client.WriteStream(context.Background())
+				_ = err
+				defer writer.CloseSend()
+
+				for pb.Next() {
+					err := writer.Send(&helloproto.WriteRequest{
+						Data: getTestData(testdatasize),
+					})
+					_ = err
+					resp, err := writer.Recv()
+					_ = resp
+					_ = err
+				}
+			})
+		})
+		b.Run("readstream", func(b *testing.B) {
+			b.SetBytes(int64(testdatasize))
+			b.RunParallel(func(pb *testing.PB) {
+				reader, err := client.ReadStream(context.Background())
+				_ = err
+				defer reader.CloseSend()
+
+				for pb.Next() {
+					err := reader.Send(&helloproto.ReadRequest{
+						ReadBytes: int32(testdatasize),
+					})
+					_ = err
+					resp, err := reader.Recv()
+					_ = resp
+					_ = err
+				}
+			})
+		})
+	})
+}
+
+type protoServer struct {
+	helloproto.UnimplementedHelloServiceServer
+}
+
+func (s *protoServer) SayHello(ctx context.Context, in *helloproto.HelloRequest) (*helloproto.HelloReply, error) {
+	return &helloproto.HelloReply{
+		Name: in.Name,
+	}, nil
+}
+
+func (s *protoServer) Read(ctx context.Context, in *helloproto.ReadRequest) (*helloproto.ReadReply, error) {
+	return &helloproto.ReadReply{
+		Data: getTestData(int(in.ReadBytes)),
+		Eof:  false,
+	}, nil
+}
+
+func (s *protoServer) Write(ctx context.Context, in *helloproto.WriteRequest) (*helloproto.WriteReply, error) {
+	return &helloproto.WriteReply{
+		WrittenBytes: int32(len(in.Data)),
+	}, nil
+}
+
+func (s *protoServer) ReadStream(stream helloproto.HelloService_ReadStreamServer) error {
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(&helloproto.ReadReply{
+			Data: getTestData(int(req.ReadBytes)),
+		}); err != nil {
+			return err
 		}
 	}
 }
 
-func BenchmarkHelloSerial(b *testing.B) {
-	p := NewBuilderPool(0)
-	for _, name := range _testsizenamearray {
-		_testdataname = name
-		_testdatasize = _testsizearray[name]
-		_maxmsgsize = _testdatasize + 256
-		initTestData(_testdatasize)
-
-		b.Run(_testdataname, func(b *testing.B) {
-			b.Run("flatc", func(b *testing.B) {
-				b.Run("marshal", func(b *testing.B) {
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							bd := p.GetBuilder()
-
-							// bd := flatbuffers.NewBuilder(_maxmsgsize)
-							name := bd.CreateString(_testname)
-							phone := bd.CreateString(_testphone)
-							address := bd.CreateString(_testaddress)
-							data := bd.CreateByteVector(_testdata)
-							helloflatc.HelloRequestStart(bd)
-							helloflatc.HelloRequestAddName(bd, name)
-							helloflatc.HelloRequestAddAge(bd, 1)
-							helloflatc.HelloRequestAddPhone(bd, phone)
-							helloflatc.HelloRequestAddAddress(bd, address)
-							helloflatc.HelloRequestAddData(bd, data)
-							bd.Finish(helloflatc.HelloRequestEnd(bd))
-
-							buf := bd.FinishedBytes()
-							_ = buf
-
-							p.PutBuilder(bd)
-						}
-					})
-				})
-				b.Run("unmarshal", func(b *testing.B) {
-					b.RunParallel(func(pb *testing.PB) {
-						bd := p.GetBuilder()
-						defer p.PutBuilder(bd)
-
-						// bd := flatbuffers.NewBuilder(_maxmsgsize)
-						name := bd.CreateString(_testname)
-						phone := bd.CreateString(_testphone)
-						address := bd.CreateString(_testaddress)
-						data := bd.CreateByteVector(_testdata)
-						helloflatc.HelloRequestStart(bd)
-						helloflatc.HelloRequestAddName(bd, name)
-						helloflatc.HelloRequestAddAge(bd, 1)
-						helloflatc.HelloRequestAddPhone(bd, phone)
-						helloflatc.HelloRequestAddAddress(bd, address)
-						helloflatc.HelloRequestAddData(bd, data)
-						bd.Finish(helloflatc.HelloRequestEnd(bd))
-						buf := bd.FinishedBytes()
-						for pb.Next() {
-							hellorequest := helloflatc.GetRootAsHelloRequest(buf, 0)
-							_ = hellorequest
-						}
-					})
-				})
-			})
-
-			b.Run("proto", func(b *testing.B) {
-				b.Run("marshal", func(b *testing.B) {
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							h := &helloproto.HelloRequest{
-								Name:    _testname,
-								Age:     1,
-								Phone:   _testphone,
-								Address: _testaddress,
-								Data:    _testdata,
-							}
-
-							buf, err := proto.Marshal(h)
-							assert.NoError(b, err)
-							_ = buf
-						}
-					})
-				})
-				b.Run("unmarshal", func(b *testing.B) {
-					b.RunParallel(func(pb *testing.PB) {
-						h := &helloproto.HelloRequest{
-							Name:    _testname,
-							Age:     1,
-							Phone:   _testphone,
-							Address: _testaddress,
-							Data:    _testdata,
-						}
-
-						buf, err := proto.Marshal(h)
-						assert.NoError(b, err)
-						for pb.Next() {
-							h2 := &helloproto.HelloRequest{}
-							err = proto.Unmarshal(buf, h2)
-							assert.NoError(b, err)
-						}
-					})
-				})
-			})
-		})
+func (s *protoServer) WriteStream(stream helloproto.HelloService_WriteStreamServer) error {
+	for {
+		in, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(&helloproto.WriteReply{
+			WrittenBytes: int32(len(in.Data)),
+		}); err != nil {
+			return err
+		}
 	}
 }
 
-func BenchmarkHelloGRPC(b *testing.B) {
-	p := NewBuilderPool(0)
-	for _, name := range _testsizenamearray {
-		_testdataname = name
-		_testdatasize = _testsizearray[name]
-		_maxmsgsize = _testdatasize + 256
-		initTestData(_testdatasize)
-
-		b.Run(_testdataname, func(b *testing.B) {
-			b.Run("flatc", func(b *testing.B) {
-				b.Run("send_data", func(b *testing.B) {
-					client, closer := flatcServe(b, false)
-					defer closer()
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							bd := p.GetBuilder()
-							// bd := flatbuffers.NewBuilder(_maxmsgsize)
-							name := bd.CreateString("name")
-							phone := bd.CreateString("phone")
-							address := bd.CreateString("address")
-							data := bd.CreateByteVector(_testdata)
-							helloflatc.HelloRequestStart(bd)
-							helloflatc.HelloRequestAddName(bd, name)
-							helloflatc.HelloRequestAddAge(bd, 1)
-							helloflatc.HelloRequestAddPhone(bd, phone)
-							helloflatc.HelloRequestAddAddress(bd, address)
-							helloflatc.HelloRequestAddData(bd, data)
-							bd.Finish(helloflatc.HelloRequestEnd(bd))
-
-							res, err := client.SayHello(context.Background(), bd)
-							assert.NoError(b, err)
-							_ = res
-							p.PutBuilder(bd)
-						}
-					})
-				})
-				b.Run("recv_data", func(b *testing.B) {
-					client, closer := flatcServe(b, true)
-					defer closer()
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							bd := p.GetBuilder()
-							// bd := flatbuffers.NewBuilder(_maxmsgsize)
-							name := bd.CreateString("name")
-							phone := bd.CreateString("phone")
-							address := bd.CreateString("address")
-							data := bd.CreateByteVector(_testemptydata)
-							helloflatc.HelloRequestStart(bd)
-							helloflatc.HelloRequestAddName(bd, name)
-							helloflatc.HelloRequestAddAge(bd, 1)
-							helloflatc.HelloRequestAddPhone(bd, phone)
-							helloflatc.HelloRequestAddAddress(bd, address)
-							helloflatc.HelloRequestAddData(bd, data)
-							bd.Finish(helloflatc.HelloRequestEnd(bd))
-
-							res, err := client.SayHello(context.Background(), bd)
-							assert.NoError(b, err)
-							_ = res
-							p.PutBuilder(bd)
-						}
-					})
-				})
-				b.Run("sendrecv", func(b *testing.B) {
-					client, closer := flatcServe(b, true)
-					defer closer()
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							bd := p.GetBuilder()
-							// bd := flatbuffers.NewBuilder(_maxmsgsize)
-							name := bd.CreateString("name")
-							phone := bd.CreateString("phone")
-							address := bd.CreateString("address")
-							data := bd.CreateByteVector(_testdata)
-							helloflatc.HelloRequestStart(bd)
-							helloflatc.HelloRequestAddName(bd, name)
-							helloflatc.HelloRequestAddAge(bd, 1)
-							helloflatc.HelloRequestAddPhone(bd, phone)
-							helloflatc.HelloRequestAddAddress(bd, address)
-							helloflatc.HelloRequestAddData(bd, data)
-							bd.Finish(helloflatc.HelloRequestEnd(bd))
-
-							res, err := client.SayHello(context.Background(), bd)
-							assert.NoError(b, err)
-							_ = res
-							p.PutBuilder(bd)
-						}
-					})
-				})
-			})
-			b.Run("proto", func(b *testing.B) {
-				b.Run("send_data", func(b *testing.B) {
-					client, closer := protoServe(b, false)
-					defer closer()
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							res, err := client.SayHello(context.Background(), &helloproto.HelloRequest{
-								Name:    "name",
-								Age:     1,
-								Phone:   "phone",
-								Address: "address",
-								Data:    _testdata,
-							})
-
-							assert.NoError(b, err)
-							_ = res
-						}
-					})
-				})
-				b.Run("recv_data", func(b *testing.B) {
-					client, closer := protoServe(b, true)
-					defer closer()
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							res, err := client.SayHello(context.Background(), &helloproto.HelloRequest{
-								Name:    "name",
-								Age:     1,
-								Phone:   "phone",
-								Address: "address",
-								Data:    _testemptydata,
-							})
-
-							assert.NoError(b, err)
-							_ = res
-						}
-					})
-				})
-				b.Run("sendrecv", func(b *testing.B) {
-					client, closer := protoServe(b, true)
-					defer closer()
-					b.RunParallel(func(pb *testing.PB) {
-						for pb.Next() {
-							res, err := client.SayHello(context.Background(), &helloproto.HelloRequest{
-								Name:    "name",
-								Age:     1,
-								Phone:   "phone",
-								Address: "address",
-								Data:    _testdata,
-							})
-
-							assert.NoError(b, err)
-							_ = res
-						}
-					})
-				})
-			})
-		})
-	}
-}
-
-type protoServer struct {
-	writeData bool
-}
-
-func (s *protoServer) SayHello(ctx context.Context, in *helloproto.HelloRequest) (*helloproto.HelloReply, error) {
-	writedata := _testemptydata
-	if s.writeData {
-		writedata = _testdata
-	}
-	return &helloproto.HelloReply{
-		Name:    in.Name,
-		Age:     in.Age,
-		Phone:   in.Phone,
-		Address: in.Address,
-		Data:    writedata,
-	}, nil
-}
-
-func protoServe(t assert.TestingT, writeData bool) (client helloproto.GreeterClient, closer func()) {
+func protoServe(t assert.TestingT, maxmsgsize int) (client helloproto.HelloServiceClient, closer func()) {
 	grpcServer := grpc.NewServer(
-		grpc.MaxRecvMsgSize(_maxmsgsize),
-		grpc.MaxSendMsgSize(_maxmsgsize),
+		grpc.MaxRecvMsgSize(maxmsgsize),
+		grpc.MaxSendMsgSize(maxmsgsize),
 	)
-	helloproto.RegisterGreeterServer(grpcServer, &protoServer{writeData: writeData})
+	helloproto.RegisterHelloServiceServer(grpcServer, &protoServer{})
 
 	port := randPort()
 	grpcEndpoint := fmt.Sprintf("%s:%d", "127.0.0.1", port)
@@ -349,12 +453,12 @@ func protoServe(t assert.TestingT, writeData bool) (client helloproto.GreeterCli
 	conn, err := grpc.NewClient(fmt.Sprintf("%s:%d", "127.0.0.1", port),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(_maxmsgsize),
-			grpc.MaxCallSendMsgSize(_maxmsgsize),
+			grpc.MaxCallRecvMsgSize(maxmsgsize),
+			grpc.MaxCallSendMsgSize(maxmsgsize),
 		),
 	)
 	assert.NoError(t, err)
-	client = helloproto.NewGreeterClient(conn)
+	client = helloproto.NewHelloServiceClient(conn)
 	assert.NoError(t, err)
 	return client, func() {
 		conn.Close()
@@ -363,38 +467,84 @@ func protoServe(t assert.TestingT, writeData bool) (client helloproto.GreeterCli
 }
 
 type flatcServer struct {
-	helloflatc.UnimplementedGreeterServer
-	writeData bool
+	helloflatc.UnimplementedHelloServiceServer
 }
 
 func (s *flatcServer) SayHello(ctx context.Context, req *helloflatc.HelloRequest) (*flatbuffers.Builder, error) {
-	out := flatbuffers.NewBuilder(_maxmsgsize)
+	out := flatbuffers.NewBuilder(0)
 	name := out.CreateString(string(req.Name()))
-	phone := out.CreateString(string(req.Phone()))
-	address := out.CreateString(string(req.Address()))
-	writedata := _testemptydata
-	if s.writeData {
-		writedata = _testdata
-	}
-	data := out.CreateByteVector(writedata)
-	helloflatc.HelloRequestStart(out)
-	helloflatc.HelloRequestAddName(out, name)
-	helloflatc.HelloRequestAddAge(out, req.Age())
-	helloflatc.HelloRequestAddPhone(out, phone)
-	helloflatc.HelloRequestAddAddress(out, address)
-	helloflatc.HelloRequestAddData(out, data)
-	out.Finish(helloflatc.HelloRequestEnd(out))
+	helloflatc.HelloReplyStart(out)
+	helloflatc.HelloReplyAddName(out, name)
+	out.Finish(helloflatc.HelloReplyEnd(out))
 
 	return out, nil
 }
 
-func flatcServe(t assert.TestingT, writeData bool) (client helloflatc.GreeterClient, closer func()) {
+func (s *flatcServer) Read(ctx context.Context, req *helloflatc.ReadRequest) (*flatbuffers.Builder, error) {
+	out := flatbuffers.NewBuilder(getMaxMsgSize(int(req.ReadBytes())))
+	data := out.CreateByteVector(getTestData(int(req.ReadBytes())))
+	helloflatc.ReadReplyStart(out)
+	helloflatc.ReadReplyAddData(out, data)
+	helloflatc.ReadReplyAddEof(out, false)
+	out.Finish(helloflatc.ReadReplyEnd(out))
+
+	return out, nil
+}
+
+func (s *flatcServer) Write(ctx context.Context, req *helloflatc.WriteRequest) (*flatbuffers.Builder, error) {
+	out := flatbuffers.NewBuilder(0)
+	helloflatc.WriteReplyStart(out)
+	helloflatc.WriteReplyAddWrittenBytes(out, int32(len(req.DataBytes())))
+	out.Finish(helloflatc.WriteReplyEnd(out))
+
+	return out, nil
+}
+
+func (s *flatcServer) ReadStream(stream helloflatc.HelloService_ReadStreamServer) error {
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+
+		out := flatbuffers.NewBuilder(getMaxMsgSize(int(req.ReadBytes())))
+		data := out.CreateByteVector(getTestData(int(req.ReadBytes())))
+		helloflatc.ReadReplyStart(out)
+		helloflatc.ReadReplyAddData(out, data)
+		helloflatc.ReadReplyAddEof(out, false)
+		out.Finish(helloflatc.ReadReplyEnd(out))
+
+		if err := stream.Send(out); err != nil {
+			return err
+		}
+	}
+}
+
+func (s *flatcServer) WriteStream(stream helloflatc.HelloService_WriteStreamServer) error {
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+
+		out := flatbuffers.NewBuilder(0)
+		helloflatc.WriteReplyStart(out)
+		helloflatc.WriteReplyAddWrittenBytes(out, int32(len(req.DataBytes())))
+		out.Finish(helloflatc.WriteReplyEnd(out))
+
+		if err := stream.Send(out); err != nil {
+			return err
+		}
+	}
+}
+
+func flatcServe(t assert.TestingT, maxmsgsize int) (client helloflatc.HelloServiceClient, closer func()) {
 	grpcServer := grpc.NewServer(
 		grpc.ForceServerCodec(&flatbuffers.FlatbuffersCodec{}),
-		grpc.MaxRecvMsgSize(_maxmsgsize),
-		grpc.MaxSendMsgSize(_maxmsgsize),
+		grpc.MaxRecvMsgSize(maxmsgsize),
+		grpc.MaxSendMsgSize(maxmsgsize),
 	)
-	helloflatc.RegisterGreeterServer(grpcServer, &flatcServer{writeData: writeData})
+	helloflatc.RegisterHelloServiceServer(grpcServer, &flatcServer{})
 
 	port := randPort()
 	grpcEndpoint := fmt.Sprintf("%s:%d", "127.0.0.1", port)
@@ -407,12 +557,12 @@ func flatcServe(t assert.TestingT, writeData bool) (client helloflatc.GreeterCli
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.ForceCodec(&flatbuffers.FlatbuffersCodec{}),
-			grpc.MaxCallRecvMsgSize(_maxmsgsize),
-			grpc.MaxCallSendMsgSize(_maxmsgsize),
+			grpc.MaxCallRecvMsgSize(maxmsgsize),
+			grpc.MaxCallSendMsgSize(maxmsgsize),
 		),
 	)
 	assert.NoError(t, err)
-	client = helloflatc.NewGreeterClient(conn)
+	client = helloflatc.NewHelloServiceClient(conn)
 	assert.NoError(t, err)
 	return client, func() {
 		conn.Close()

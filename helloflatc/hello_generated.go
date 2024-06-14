@@ -49,88 +49,11 @@ func (rcv *HelloRequest) Name() []byte {
 	return nil
 }
 
-func (rcv *HelloRequest) Age() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
-	if o != 0 {
-		return rcv._tab.GetInt32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *HelloRequest) MutateAge(n int32) bool {
-	return rcv._tab.MutateInt32Slot(6, n)
-}
-
-func (rcv *HelloRequest) Phone() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
-func (rcv *HelloRequest) Address() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
-func (rcv *HelloRequest) Data(j int) byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		a := rcv._tab.Vector(o)
-		return rcv._tab.GetByte(a + flatbuffers.UOffsetT(j*1))
-	}
-	return 0
-}
-
-func (rcv *HelloRequest) DataLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		return rcv._tab.VectorLen(o)
-	}
-	return 0
-}
-
-func (rcv *HelloRequest) DataBytes() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
-func (rcv *HelloRequest) MutateData(j int, n byte) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		a := rcv._tab.Vector(o)
-		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), n)
-	}
-	return false
-}
-
 func HelloRequestStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(1)
 }
 func HelloRequestAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(name), 0)
-}
-func HelloRequestAddAge(builder *flatbuffers.Builder, age int32) {
-	builder.PrependInt32Slot(1, age, 0)
-}
-func HelloRequestAddPhone(builder *flatbuffers.Builder, phone flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(phone), 0)
-}
-func HelloRequestAddAddress(builder *flatbuffers.Builder, address flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(address), 0)
-}
-func HelloRequestAddData(builder *flatbuffers.Builder, data flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(data), 0)
-}
-func HelloRequestStartDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
-	return builder.StartVector(1, numElems, 1)
 }
 func HelloRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
@@ -178,7 +101,348 @@ func (rcv *HelloReply) Name() []byte {
 	return nil
 }
 
-func (rcv *HelloReply) Age() int32 {
+func HelloReplyStart(builder *flatbuffers.Builder) {
+	builder.StartObject(1)
+}
+func HelloReplyAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(name), 0)
+}
+func HelloReplyEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+type ReadRequest struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsReadRequest(buf []byte, offset flatbuffers.UOffsetT) *ReadRequest {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &ReadRequest{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func FinishReadRequestBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.Finish(offset)
+}
+
+func GetSizePrefixedRootAsReadRequest(buf []byte, offset flatbuffers.UOffsetT) *ReadRequest {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &ReadRequest{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func FinishSizePrefixedReadRequestBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.FinishSizePrefixed(offset)
+}
+
+func (rcv *ReadRequest) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *ReadRequest) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *ReadRequest) ReadBytes() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *ReadRequest) MutateReadBytes(n int32) bool {
+	return rcv._tab.MutateInt32Slot(4, n)
+}
+
+func ReadRequestStart(builder *flatbuffers.Builder) {
+	builder.StartObject(1)
+}
+func ReadRequestAddReadBytes(builder *flatbuffers.Builder, readBytes int32) {
+	builder.PrependInt32Slot(0, readBytes, 0)
+}
+func ReadRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+type ReadReply struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsReadReply(buf []byte, offset flatbuffers.UOffsetT) *ReadReply {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &ReadReply{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func FinishReadReplyBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.Finish(offset)
+}
+
+func GetSizePrefixedRootAsReadReply(buf []byte, offset flatbuffers.UOffsetT) *ReadReply {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &ReadReply{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func FinishSizePrefixedReadReplyBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.FinishSizePrefixed(offset)
+}
+
+func (rcv *ReadReply) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *ReadReply) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *ReadReply) Data(j int) byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.GetByte(a + flatbuffers.UOffsetT(j*1))
+	}
+	return 0
+}
+
+func (rcv *ReadReply) DataLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *ReadReply) DataBytes() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *ReadReply) MutateData(j int, n byte) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), n)
+	}
+	return false
+}
+
+func (rcv *ReadReply) Eof() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ReadReply) MutateEof(n bool) bool {
+	return rcv._tab.MutateBoolSlot(6, n)
+}
+
+func ReadReplyStart(builder *flatbuffers.Builder) {
+	builder.StartObject(2)
+}
+func ReadReplyAddData(builder *flatbuffers.Builder, data flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(data), 0)
+}
+func ReadReplyStartDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(1, numElems, 1)
+}
+func ReadReplyAddEof(builder *flatbuffers.Builder, eof bool) {
+	builder.PrependBoolSlot(1, eof, false)
+}
+func ReadReplyEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+type WriteRequest struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsWriteRequest(buf []byte, offset flatbuffers.UOffsetT) *WriteRequest {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &WriteRequest{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func FinishWriteRequestBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.Finish(offset)
+}
+
+func GetSizePrefixedRootAsWriteRequest(buf []byte, offset flatbuffers.UOffsetT) *WriteRequest {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &WriteRequest{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func FinishSizePrefixedWriteRequestBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.FinishSizePrefixed(offset)
+}
+
+func (rcv *WriteRequest) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *WriteRequest) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *WriteRequest) Data(j int) byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.GetByte(a + flatbuffers.UOffsetT(j*1))
+	}
+	return 0
+}
+
+func (rcv *WriteRequest) DataLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *WriteRequest) DataBytes() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *WriteRequest) MutateData(j int, n byte) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), n)
+	}
+	return false
+}
+
+func WriteRequestStart(builder *flatbuffers.Builder) {
+	builder.StartObject(1)
+}
+func WriteRequestAddData(builder *flatbuffers.Builder, data flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(data), 0)
+}
+func WriteRequestStartDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(1, numElems, 1)
+}
+func WriteRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+type WriteReply struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsWriteReply(buf []byte, offset flatbuffers.UOffsetT) *WriteReply {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &WriteReply{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func FinishWriteReplyBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.Finish(offset)
+}
+
+func GetSizePrefixedRootAsWriteReply(buf []byte, offset flatbuffers.UOffsetT) *WriteReply {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &WriteReply{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func FinishSizePrefixedWriteReplyBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.FinishSizePrefixed(offset)
+}
+
+func (rcv *WriteReply) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *WriteReply) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *WriteReply) WrittenBytes() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *WriteReply) MutateWrittenBytes(n int32) bool {
+	return rcv._tab.MutateInt32Slot(4, n)
+}
+
+func WriteReplyStart(builder *flatbuffers.Builder) {
+	builder.StartObject(1)
+}
+func WriteReplyAddWrittenBytes(builder *flatbuffers.Builder, writtenBytes int32) {
+	builder.PrependInt32Slot(0, writtenBytes, 0)
+}
+func WriteReplyEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+type User struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsUser(buf []byte, offset flatbuffers.UOffsetT) *User {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &User{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func FinishUserBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.Finish(offset)
+}
+
+func GetSizePrefixedRootAsUser(buf []byte, offset flatbuffers.UOffsetT) *User {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &User{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func FinishSizePrefixedUserBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+	builder.FinishSizePrefixed(offset)
+}
+
+func (rcv *User) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *User) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *User) Name() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *User) Age() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
@@ -186,11 +450,11 @@ func (rcv *HelloReply) Age() int32 {
 	return 0
 }
 
-func (rcv *HelloReply) MutateAge(n int32) bool {
+func (rcv *User) MutateAge(n int32) bool {
 	return rcv._tab.MutateInt32Slot(6, n)
 }
 
-func (rcv *HelloReply) Phone() []byte {
+func (rcv *User) Phone() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -198,7 +462,7 @@ func (rcv *HelloReply) Phone() []byte {
 	return nil
 }
 
-func (rcv *HelloReply) Address() []byte {
+func (rcv *User) Address() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -206,7 +470,7 @@ func (rcv *HelloReply) Address() []byte {
 	return nil
 }
 
-func (rcv *HelloReply) Data(j int) byte {
+func (rcv *User) Data(j int) byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
@@ -215,7 +479,7 @@ func (rcv *HelloReply) Data(j int) byte {
 	return 0
 }
 
-func (rcv *HelloReply) DataLength() int {
+func (rcv *User) DataLength() int {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
@@ -223,7 +487,7 @@ func (rcv *HelloReply) DataLength() int {
 	return 0
 }
 
-func (rcv *HelloReply) DataBytes() []byte {
+func (rcv *User) DataBytes() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -231,7 +495,7 @@ func (rcv *HelloReply) DataBytes() []byte {
 	return nil
 }
 
-func (rcv *HelloReply) MutateData(j int, n byte) bool {
+func (rcv *User) MutateData(j int, n byte) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
@@ -240,27 +504,27 @@ func (rcv *HelloReply) MutateData(j int, n byte) bool {
 	return false
 }
 
-func HelloReplyStart(builder *flatbuffers.Builder) {
+func UserStart(builder *flatbuffers.Builder) {
 	builder.StartObject(5)
 }
-func HelloReplyAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
+func UserAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(name), 0)
 }
-func HelloReplyAddAge(builder *flatbuffers.Builder, age int32) {
+func UserAddAge(builder *flatbuffers.Builder, age int32) {
 	builder.PrependInt32Slot(1, age, 0)
 }
-func HelloReplyAddPhone(builder *flatbuffers.Builder, phone flatbuffers.UOffsetT) {
+func UserAddPhone(builder *flatbuffers.Builder, phone flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(phone), 0)
 }
-func HelloReplyAddAddress(builder *flatbuffers.Builder, address flatbuffers.UOffsetT) {
+func UserAddAddress(builder *flatbuffers.Builder, address flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(address), 0)
 }
-func HelloReplyAddData(builder *flatbuffers.Builder, data flatbuffers.UOffsetT) {
+func UserAddData(builder *flatbuffers.Builder, data flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(data), 0)
 }
-func HelloReplyStartDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+func UserStartDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(1, numElems, 1)
 }
-func HelloReplyEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+func UserEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
 }
